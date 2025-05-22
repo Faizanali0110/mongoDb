@@ -35,19 +35,30 @@ export default function Home() {
         body: JSON.stringify(formData),
       });
       
-      const data = await response.json();
-      
-      if (response.ok) {
-        setIsSuccess(true);
-        setFormData({ name: '', email: '' });
-        setMessage(data.message);
-      } else {
-        setIsError(true);
-        setMessage(data.message || 'Something went wrong');
+      // Check if response is ok before trying to parse JSON
+      if (!response.ok) {
+        let errorMessage = 'Server error';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorMessage;
+        } catch (e) {
+          // If JSON parsing fails, try to get text content
+          try {
+            errorMessage = await response.text() || errorMessage;
+          } catch (textError) {
+            console.error('Failed to parse error response:', textError);
+          }
+        }
+        throw new Error(errorMessage);
       }
+      
+      const data = await response.json();
+      setIsSuccess(true);
+      setFormData({ name: '', email: '' });
+      setMessage(data.message || 'User registered successfully!');
     } catch (error) {
       setIsError(true);
-      setMessage('Failed to connect to server');
+      setMessage(error.message || 'Failed to connect to server');
       console.error('Error:', error);
     } finally {
       setIsLoading(false);
