@@ -27,24 +27,38 @@ export default function Home() {
     setIsError(false);
     
     try {
-      const response = await fetch('/api/add-user', {
+      // Use relative path for local development or absolute URL for production
+      const apiUrl = process.env.NODE_ENV === 'production' 
+        ? 'https://mongo-db-5jtp.vercel.app/api/add-user'
+        : '/api/add-user';
+      
+      console.log('Submitting to API:', apiUrl);
+      
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
         body: JSON.stringify(formData),
+        // Include credentials for cross-origin requests
+        credentials: 'include',
       });
+      
+      console.log('Response status:', response.status);
       
       // Check if response is ok before trying to parse JSON
       if (!response.ok) {
-        let errorMessage = 'Server error';
+        let errorMessage = `Server error (${response.status})`;
         try {
           const errorData = await response.json();
           errorMessage = errorData.message || errorMessage;
         } catch (e) {
           // If JSON parsing fails, try to get text content
           try {
-            errorMessage = await response.text() || errorMessage;
+            const textContent = await response.text();
+            errorMessage = textContent || errorMessage;
+            console.log('Error response text:', textContent);
           } catch (textError) {
             console.error('Failed to parse error response:', textError);
           }
@@ -52,7 +66,14 @@ export default function Home() {
         throw new Error(errorMessage);
       }
       
-      const data = await response.json();
+      let data;
+      try {
+        data = await response.json();
+      } catch (jsonError) {
+        console.error('Failed to parse success response:', jsonError);
+        data = { message: 'User registered successfully (but response was not valid JSON)' };
+      }
+      
       setIsSuccess(true);
       setFormData({ name: '', email: '' });
       setMessage(data.message || 'User registered successfully!');
